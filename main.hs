@@ -167,4 +167,4 @@ main = do
   putStr "neighbors: "
   quickCheck prop_Exercise3_neighbors
   putStrLn "Exercise 4:"
-  quickCheck prop_Exercise4
+  quickCheck (withMaxSuccess 50 prop_Exercise4)
