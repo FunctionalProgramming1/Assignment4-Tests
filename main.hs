@@ -62,8 +62,10 @@ graphNeighbors :: Eq a => Graph.Graph a -> a -> [a]
 graphNeighbors = Graph.neighbors
 
 {- When building an "arbitrary" graph, we make sure that
-     1. vertices are added before any edges that contain them;
+     1. vertices are added before any edges that contain them, and
      2. no edge is of the form (u,u).
+   Duplicate vertices and edges, as well as edges of the form (u,v) and (v,u),
+   are permitted in `GraphBuilder'.
  -}
 data GraphBuilder a = GraphBuilder [Either a (a,a)]
 
@@ -89,18 +91,21 @@ arbitrarySizedGraphBuilder m = do
   e <- chooseInt (0,  n * (n-1) `div` 2)  -- (upper bound on the) number of edges
   vs <- liftM nub (vectorOf n arbitrary)
   let es = [ (u,v) | u <- vs, v <- vs, u /= v ]
-  xs <- shuffleVerticesEdges n e [] vs es
+  xs <- shuffleVerticesEdges vs es n e []
   return $ GraphBuilder xs
-    where
-      shuffleVerticesEdges :: Eq a => Int -> Int -> [a] -> [a] -> [(a,a)] -> Gen [Either a (a,a)]
-      shuffleVerticesEdges 0 0 _ _ _ = return []
-      shuffleVerticesEdges n e seen vs es = do
-        let es' = filter (\(u,v) -> u `elem` seen && v `elem` seen) es
-        let vs_es' = (if n > 0 then map Left vs else []) ++ (if e > 0 then map Right es' else [])
-        x <- elements vs_es'
-        liftM (x:) $ case x of
-          Left v -> shuffleVerticesEdges (n-1) e (v:seen) vs es
-          Right _ -> shuffleVerticesEdges n (e-1) seen vs es
+
+shuffleVerticesEdges :: Eq a => [a] -> [(a,a)] -> Int -> Int -> [a] -> Gen [Either a (a,a)]
+shuffleVerticesEdges _ _ 0 0 _ = return []
+shuffleVerticesEdges vs es n e seen = do
+  let es' = filter (\(u,v) -> u `elem` seen && v `elem` seen) es
+  let vs_es' = (if n > 0 then map Left vs else []) ++ (if e > 0 then map Right es' else [])
+  if null vs_es'
+    then return []
+    else do
+      x <- elements vs_es'
+      liftM (x:) $ case x of
+        Left v -> shuffleVerticesEdges vs es (n-1) e (v:seen)
+        Right _ -> shuffleVerticesEdges vs es n (e-1) seen
 
 graphBuilderVertices :: Eq a => GraphBuilder a -> [a]
 graphBuilderVertices (GraphBuilder xs) = nub $ lefts xs
@@ -152,8 +157,8 @@ main = do
   quickCheck prop_Exercise2
   putStrLn "Exercise 3:"
   putStr "vertices: "
-  quickCheck prop_Exercise3_vertices
+  quickCheck (withMaxSuccess 50 prop_Exercise3_vertices)
   putStr "neighbors: "
-  quickCheck prop_Exercise3_neighbors
+  quickCheck (withMaxSuccess 50 prop_Exercise3_neighbors)
   putStrLn "Exercise 4:"
   quickCheck (withMaxSuccess 50 prop_Exercise4)
