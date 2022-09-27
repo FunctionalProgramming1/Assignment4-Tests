@@ -62,11 +62,8 @@ graphNeighbors :: Eq a => Graph.Graph a -> a -> [a]
 graphNeighbors = Graph.neighbors
 
 {- When building an "arbitrary" graph, we make sure that
-     1. each vertex is added only once;
-     2. each edge is added only once;
-     3. vertices are added before any edges that contain them;
-     4. at most one of the edges (u,v) and (v,u) is added;
-     5. no edge is of the form (u,u).
+     1. vertices are added before any edges that contain them;
+     2. no edge is of the form (u,u).
  -}
 data GraphBuilder a = GraphBuilder [Either a (a,a)]
 
@@ -91,30 +88,22 @@ arbitrarySizedGraphBuilder m = do
   n <- chooseInt (0, m)  -- (upper bound on the) number of vertices
   e <- chooseInt (0,  n * (n-1) `div` 2)  -- (upper bound on the) number of edges
   vs <- liftM nub (vectorOf n arbitrary)
-  let esSymm = [ (u,v) | u <- vs, v <- vs, u /= v ]
-  es' <- removeSymm esSymm  -- keep only one of (u,v) and (v,u)
-  es <- liftM (take e) (shuffle es')
-  xs <- shuffleVerticesEdges [] vs es
+  let es = [ (u,v) | u <- vs, v <- vs, u /= v ]
+  xs <- shuffleVerticesEdges n e [] vs es
   return $ GraphBuilder xs
     where
-      removeSymm :: Eq a => [(a,a)] -> Gen [(a,a)]
-      removeSymm [] = return []
-      removeSymm ((u,v):es) = do
-        let es' = filter (\edge -> edge /= (u,v) && edge /= (v,u)) es
-        bit <- arbitrary
-        liftM ((if bit then (u,v) else (v,u)) :) (removeSymm es')
-      shuffleVerticesEdges :: Eq a => [a] -> [a] -> [(a,a)] -> Gen [Either a (a,a)]
-      shuffleVerticesEdges _ vs [] = return $ map Left vs
-      shuffleVerticesEdges _ [] es = return $ map Right es
-      shuffleVerticesEdges seen vs es = do
+      shuffleVerticesEdges :: Eq a => Int -> Int -> [a] -> [a] -> [(a,a)] -> Gen [Either a (a,a)]
+      shuffleVerticesEdges 0 0 _ _ _ = return []
+      shuffleVerticesEdges n e seen vs es = do
         let es' = filter (\(u,v) -> u `elem` seen && v `elem` seen) es
-        x <- elements (map Left vs ++ map Right es')
+        let vs_es' = (if n > 0 then map Left vs else []) ++ (if e > 0 then map Right es' else [])
+        x <- elements vs_es'
         liftM (x:) $ case x of
-          Left v -> shuffleVerticesEdges (v:seen) (filter (/=v) vs) es
-          Right e -> shuffleVerticesEdges seen vs (filter (/=e) es)
+          Left v -> shuffleVerticesEdges (n-1) e (v:seen) vs es
+          Right _ -> shuffleVerticesEdges n (e-1) seen vs es
 
 graphBuilderVertices :: GraphBuilder a -> [a]
-graphBuilderVertices (GraphBuilder xs) = lefts xs
+graphBuilderVertices (GraphBuilder xs) = nub $ lefts xs
 
 graphBuilderNeighbors :: Eq a => GraphBuilder a -> a -> [a]
 graphBuilderNeighbors (GraphBuilder xs) v = nub $ foldl collectNeighbor [] (rights xs) where
