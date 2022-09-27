@@ -102,7 +102,7 @@ arbitrarySizedGraphBuilder m = do
           Left v -> shuffleVerticesEdges (n-1) e (v:seen) vs es
           Right _ -> shuffleVerticesEdges n (e-1) seen vs es
 
-graphBuilderVertices :: GraphBuilder a -> [a]
+graphBuilderVertices :: Eq a => GraphBuilder a -> [a]
 graphBuilderVertices (GraphBuilder xs) = nub $ lefts xs
 
 graphBuilderNeighbors :: Eq a => GraphBuilder a -> a -> [a]
