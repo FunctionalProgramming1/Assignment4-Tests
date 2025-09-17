@@ -149,8 +149,8 @@ prop_Exercise4 gb =
     all (\(u,v) -> Assignment4.connected g u v == graphBuilderConnected gb u v) [ (u,v) | u <- vs, v <- vs ]
 
 -- testing on a graph with two components, each of which is the complete graph K_n
-prop_Exercise4_KK :: NonNegative Int -> Bool
-prop_Exercise4_KK (NonNegative n) =
+prop_Exercise4_KK :: Positive Int -> Bool
+prop_Exercise4_KK (Positive n) =
   let vs1 = [0..n-1]
       es1 = [ (u,v) | u <- vs1, v <- vs1, u < v ]
       vs2 = [n..2*n-1]
