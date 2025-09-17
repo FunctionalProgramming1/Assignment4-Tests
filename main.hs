@@ -148,6 +148,18 @@ prop_Exercise4 gb =
   in
     all (\(u,v) -> Assignment4.connected g u v == graphBuilderConnected gb u v) [ (u,v) | u <- vs, v <- vs ]
 
+-- testing on a graph with two components, each of which is the complete graph K_n
+prop_Exercise4_KK :: NonNegative Int -> Bool
+prop_Exercise4_KK (NonNegative n) =
+  let vs1 = [0..n-1]
+      es1 = [ (u,v) | u <- vs1, v <- vs1, u < v ]
+      vs2 = [n..2*n-1]
+      es2 = [ (u,v) | u <- vs2, v <- vs2, u < v ]
+      gb = GraphBuilder $ map Left (vs1 ++ vs2) ++ map Right (es1 ++ es2)
+      g = buildGraph gb
+  in
+    Assignment4.connected g 0 (2*n-1) == graphBuilderConnected gb 0 (2*n-1)
+
 -- main
 
 main = do
@@ -161,4 +173,7 @@ main = do
   putStr "neighbors: "
   quickCheck (withMaxSuccess 50 prop_Exercise3_neighbors)
   putStrLn "Exercise 4:"
+  putStr "Random graphs: "
   quickCheck (withMaxSuccess 50 prop_Exercise4)
+  putStr "K_n + K_n: "
+  quickCheck prop_Exercise4_KK
